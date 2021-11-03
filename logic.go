@@ -117,9 +117,10 @@ func move(state GameState) BattlesnakeMoveResponse {
   for i := 0; i < state.Board.Width; i++ {
     blocked = append(blocked, Coord{X: i, Y: -1})
   }
-
-  // TODO: Step 3 - Don't collide with others.
-	// Use information in GameState to prevent your Battlesnake from colliding with others.
+  // Others
+  for _, snake := range state.Board.Snakes {
+    blocked = append(blocked, snake.Body...)
+  }
 
   openDirs := openDirections(myHead, blocked)
 
