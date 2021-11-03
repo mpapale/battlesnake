@@ -39,59 +39,93 @@ func end(state GameState) {
 	log.Printf("%s END\n\n", state.Game.ID)
 }
 
+type direction string
+
+const (
+  up direction = "up"
+  down direction = "down"
+  left direction = "left"
+  right direction = "right"
+)
+
+type directions map[direction]bool
+
+// neighborDirection returns the Direction in which the
+// target Coord is a neighbor of the source Coord.
+// If the Coords are not neighbors, it returns nil.
+func neighborDirection(source Coord, target Coord) *direction{
+  dx := source.X - target.X
+  dy := source.Y - target.Y
+
+  var dir direction
+  switch {
+  case dx == -1 && dy == 0:
+    dir = right
+  case dx == 1 && dy == 0:
+    dir = left
+  case dx == 0 && dy == -1:
+    dir = up
+  case dx == 0 && dy == 1:
+    dir = down
+  }
+  
+  return &dir
+}
+// openDirections returns the directions that are unblocked
+// for the given coordinate, given the set of blocked coordinates
+func openDirections(pos Coord, blocked []Coord) directions{
+  dirs := directions{
+    up: true,
+    down: true,
+    left: true,
+    right: true,
+  }
+
+  for _, block := range blocked {
+    dir := neighborDirection(pos, block)
+    if dir == nil {
+      continue
+    }
+    dirs[*dir] = false
+  }
+
+  return dirs
+}
+
 // This function is called on every turn of a game. Use the provided GameState to decide
 // where to move -- valid moves are "up", "down", "left", or "right".
 // We've provided some code and comments to get you started.
 func move(state GameState) BattlesnakeMoveResponse {
-	possibleMoves := struct{
-    up bool
-    down bool
-    left bool
-    right bool
-  }{
-		up:    true,
-		down:  true,
-		left:  true,
-		right: true,
-	}
+  myHead := state.You.Body[0]
+  var blocked []Coord
+  // My body is blocked, but we elide the Head
+  blocked = append(blocked, state.You.Body[1:]...)
+  // The walls are blocked:
+  // Left wall:
+  for i := 0; i < state.Board.Height; i++ {
+    blocked = append(blocked, Coord{X: -1, Y: i})
+  }
+  // Right wall:
+  for i := 0; i < state.Board.Height; i++ {
+    blocked = append(blocked, Coord{X: state.Board.Width, Y: i})
+  }
+  // Top wall:
+  for i := 0; i < state.Board.Width; i++ {
+    blocked = append(blocked, Coord{X: i, Y: state.Board.Height})
+  }
+  // Bottom wall:
+  for i := 0; i < state.Board.Width; i++ {
+    blocked = append(blocked, Coord{X: i, Y: -1})
+  }
 
-	// Step 0: Don't let your Battlesnake move back in on it's own neck
-	myHead := state.You.Body[0] // Coordinates of your head
-	myNeck := state.You.Body[1] // Coordinates of body piece directly behind your head (your "neck")
-	switch {
-  case myNeck.X < myHead.X:
-		possibleMoves.left = false
-	case myNeck.X > myHead.X:
-		possibleMoves.right = false
-	case myNeck.Y < myHead.Y:
-		possibleMoves.down = false
-	case myNeck.Y > myHead.Y:
-		possibleMoves.up = false
-	}
+  // TODO: Step 3 - Don't collide with others.
+	// Use information in GameState to prevent your Battlesnake from colliding with others.
+
+  openDirs := openDirections(myHead, blocked)
 
   log.Println("myHead: ", myHead.X, myHead.Y)
   log.Println("board dims: ", state.Board.Width, state.Board.Height)
-	// Step 1 - Don't hit walls.
-  if myHead.X == 0 {
-    possibleMoves.left = false
-  }
-  if myHead.Y == 0 {
-    possibleMoves.down = false
-  }
-  if myHead.X == state.Board.Width-1 {
-    possibleMoves.right = false
-  }
-  if myHead.Y == state.Board.Height-1 {
-    possibleMoves.up = false
-  }
-
-
-	// TODO: Step 2 - Don't hit yourself.
-	// Use information in GameState to prevent your Battlesnake from colliding with itself.
-	// mybody := state.You.Body
-
-	// TODO: Step 3 - Don't collide with others.
-	// Use information in GameState to prevent your Battlesnake from colliding with others.
+  log.Println("blocked:", blocked)
 
 	// TODO: Step 4 - Find food.
 	// Use information in GameState to seek out and find food.
@@ -101,18 +135,12 @@ func move(state GameState) BattlesnakeMoveResponse {
 	var nextMove string
 
 	safeMoves := []string{}
-  if possibleMoves.up {
-    safeMoves = append(safeMoves, "up")
+  for k, _ := range openDirs {
+    if openDirs[k] {
+      safeMoves = append(safeMoves, string(k))
+    }
   }
-  if possibleMoves.down {
-    safeMoves = append(safeMoves, "down")
-  }
-  if possibleMoves.left {
-    safeMoves = append(safeMoves, "left")
-  }
-  if possibleMoves.right {
-    safeMoves = append(safeMoves, "right")
-  }
+
 
   log.Println("safe moves:", safeMoves)
 	if len(safeMoves) == 0 {
